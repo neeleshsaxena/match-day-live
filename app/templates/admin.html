@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin · match-day-live</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #131a23;
+      --panel-2: #1a232e;
+      --border: #243140;
+      --text: #e8eef5;
+      --muted: #8a9aae;
+      --accent: #ffb347;
+      --on: #2ee07a;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 520px; margin: 0 auto; padding: 40px 20px; }
+    h1 { font-size: 20px; font-weight: 600; margin: 0 0 24px; letter-spacing: 0.3px; }
+    h1 .sub { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 6px; }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px;
+      margin-bottom: 16px;
+    }
+    .label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .mode-row { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+    .mode-row .current {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .mode-row .current .led {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--on);
+      box-shadow: 0 0 6px var(--on);
+    }
+    .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .buttons.three { grid-template-columns: 1fr 1fr 1fr; }
+    @media (max-width: 480px) {
+      .buttons.three { grid-template-columns: 1fr; }
+    }
+    .btn {
+      display: block;
+      text-align: center;
+      padding: 14px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+      line-height: 1.3;
+    }
+    .btn .hint {
+      display: block;
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+      font-weight: 400;
+    }
+    .btn.active .hint { color: var(--on); opacity: 0.7; }
+    .btn:hover { border-color: var(--accent); }
+    .btn[disabled] { opacity: 0.4; cursor: default; pointer-events: none; }
+    .btn.active {
+      border-color: var(--on);
+      background: rgba(46,224,122,0.08);
+      color: var(--on);
+    }
+    form { margin: 0; }
+    button.btn { width: 100%; font: inherit; font-size: 14px; font-weight: 500; }
+
+    .links { display: flex; gap: 18px; font-size: 13px; }
+    .links a { color: var(--muted); text-decoration: none; }
+    .links a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>match-day-live <span class="sub">control panel</span></h1>
+
+    <div class="card">
+      <div class="label">Display mode</div>
+      <div class="mode-row">
+        <span class="current"><span class="led"></span> Currently showing: <strong>{{ current_mode }}</strong></span>
+      </div>
+
+      <div class="buttons three">
+        <form method="post" action="/admin/mode">
+          <input type="hidden" name="mode" value="today" />
+          <button type="submit" class="btn {% if current_mode == 'today' %}active{% endif %}" {% if current_mode == 'today' %}disabled{% endif %}>
+            Today
+            <span class="hint">live or fallback</span>
+          </button>
+        </form>
+
+        <form method="post" action="/admin/mode">
+          <input type="hidden" name="mode" value="next" />
+          <button type="submit" class="btn {% if current_mode == 'next' %}active{% endif %}" {% if current_mode == 'next' %}disabled{% endif %}>
+            Next scheduled
+            <span class="hint">skip today</span>
+          </button>
+        </form>
+
+        <form method="post" action="/admin/mode">
+          <input type="hidden" name="mode" value="standings" />
+          <button type="submit" class="btn {% if current_mode == 'standings' %}active{% endif %}" {% if current_mode == 'standings' %}disabled{% endif %}>
+            Standings
+            <span class="hint">groups A–L</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">Quick links</div>
+      <div class="links">
+        <a href="/" target="_blank">View display →</a>
+        <a href="/api/state" target="_blank">/api/state</a>
+        <a href="/api/matches" target="_blank">/api/matches</a>
+        <a href="/api/standings" target="_blank">/api/standings</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

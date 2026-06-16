@@ -1,0 +1,44 @@
+# ─── Secrets & runtime state ────────────────────────────────────────────────
+.admin_password
+.env
+.env.*
+.state.json
+
+# ─── Python virtualenv + bytecode ───────────────────────────────────────────
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ─── Editor & OS noise ──────────────────────────────────────────────────────
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── Tooling / local agent state ────────────────────────────────────────────
+# Claude Code project-local config (may contain hooks, permissions, etc.)
+.claude/
+
+# Operational task hand-off docs (contain LAN-specific PII: SSH user, Pi IP,
+# hostnames, local paths). Re-add a sanitized version if you want them tracked.
+tasks/
+
+# ─── LED dev artifacts ──────────────────────────────────────────────────────
+# Preview PNG is normally written to /tmp; ignore if anyone redirects it here.
+led-preview.png
+led-preview.png.tmp
+
+# ─── Build / packaging ──────────────────────────────────────────────────────
+build/
+dist/
+*.egg-info/

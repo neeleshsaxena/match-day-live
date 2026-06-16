@@ -1,0 +1,25 @@
+{# Public 3-button mode switcher. Included by index.html and standings.html.
+   POSTs to /mode (no auth). Current mode comes from `display_mode`. #}
+<div class="mode-strip">
+  <form method="post" action="/mode" class="mode-form">
+    <input type="hidden" name="mode" value="today" />
+    <button type="submit" class="mode-btn {% if display_mode == 'today' %}active{% endif %}"
+      {% if display_mode == 'today' %}disabled aria-pressed="true"{% endif %}>
+      Today
+    </button>
+  </form>
+  <form method="post" action="/mode" class="mode-form">
+    <input type="hidden" name="mode" value="next" />
+    <button type="submit" class="mode-btn {% if display_mode == 'next' %}active{% endif %}"
+      {% if display_mode == 'next' %}disabled aria-pressed="true"{% endif %}>
+      Next
+    </button>
+  </form>
+  <form method="post" action="/mode" class="mode-form">
+    <input type="hidden" name="mode" value="standings" />
+    <button type="submit" class="mode-btn {% if display_mode == 'standings' %}active{% endif %}"
+      {% if display_mode == 'standings' %}disabled aria-pressed="true"{% endif %}>
+      Standings
+    </button>
+  </form>
+</div>

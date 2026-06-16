@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>match-day-live · FIFA World Cup 2026</title>
+  {% if auto_refresh %}<meta http-equiv="refresh" content="{{ auto_refresh }}" />{% endif %}
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #131a23;
+      --panel-2: #1a232e;
+      --border: #243140;
+      --text: #e8eef5;
+      --muted: #8a9aae;
+      --accent: #ffb347;
+      --live: #2ee07a;
+      --final: #6a7888;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 80px; }
+    header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px; }
+    h1 { font-size: 22px; font-weight: 600; margin: 0; letter-spacing: 0.3px; }
+    h1 .sub { color: var(--muted); font-weight: 400; font-size: 14px; margin-left: 8px; }
+    .meta { color: var(--muted); font-size: 12px; }
+    .meta .dot { color: var(--live); }
+    .meta .stale { color: #ff7676; }
+    .mode-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin: 0 0 18px;
+    }
+    .mode-form { margin: 0; }
+    .mode-btn {
+      width: 100%;
+      padding: 10px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+      cursor: pointer;
+      transition: border-color 0.12s, background 0.12s, color 0.12s;
+    }
+    .mode-btn:hover { border-color: var(--accent); }
+    .mode-btn.active {
+      border-color: var(--live, #2ee07a);
+      background: rgba(46, 224, 122, 0.08);
+      color: var(--live, #2ee07a);
+      cursor: default;
+    }
+    .mode-btn[disabled] { pointer-events: none; }
+    .nav { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+    .navbtn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .navbtn:hover { border-color: var(--accent); color: var(--accent); }
+    .navbtn .ico { font-size: 14px; line-height: 1; }
+    .corner-btn {
+      position: fixed;
+      left: 20px;
+      bottom: 20px;
+      z-index: 10;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .corner-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .corner-btn .ico { font-size: 14px; line-height: 1; }
+    .banner {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .banner .day { font-size: 15px; font-weight: 500; }
+    .banner .tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .banner .tag.next { color: var(--accent); border-color: rgba(255,179,71,0.3); }
+    .matches { display: flex; flex-direction: column; gap: 10px; }
+    .match {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 14px;
+    }
+    .match.live { border-color: rgba(46,224,122,0.35); box-shadow: 0 0 0 1px rgba(46,224,122,0.15); }
+    .broadcasts {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      align-items: center;
+    }
+    .broadcasts .label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--muted);
+      margin-right: 2px;
+    }
+    .chan {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .chan.streaming { color: var(--muted); }
+    .chan .kind {
+      font-size: 9px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .team { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .team.away { flex-direction: row-reverse; text-align: right; }
+    .team .name { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .team .logo {
+      width: 28px; height: 28px;
+      background: var(--panel-2);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .team .logo img { width: 100%; height: 100%; object-fit: contain; }
+    .team .logo.placeholder { font-size: 11px; color: var(--muted); font-weight: 600; }
+    .center { text-align: center; min-width: 110px; }
+    .score { font-size: 26px; font-weight: 700; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
+    .score .dash { color: var(--muted); margin: 0 4px; }
+    .kickoff { font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+    .status {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .status.live { color: var(--live); font-weight: 600; }
+    .status.final { color: var(--final); }
+    .venue { font-size: 11px; color: var(--muted); margin-top: 6px; }
+    .empty {
+      background: var(--panel);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .empty p { margin: 4px 0; }
+    .empty .small { font-size: 12px; }
+    footer {
+      margin-top: 32px;
+      color: var(--muted);
+      font-size: 11px;
+      text-align: center;
+    }
+    @media (max-width: 540px) {
+      .team .name { font-size: 13px; }
+      .score { font-size: 22px; }
+      .center { min-width: 88px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>match-day-live <span class="sub">FIFA World Cup 2026</span></h1>
+      <div class="meta">
+        {% if stale %}
+          <span class="stale">stale · last fetch {{ fetched_label }}</span>
+        {% elif any_live %}
+          <span class="dot">●</span> live · updated {{ fetched_label }}
+        {% else %}
+          updated {{ fetched_label }}
+        {% endif %}
+      </div>
+    </header>
+
+    {% include "_mode_controls.html" %}
+
+    <div class="nav">
+      <a class="navbtn" href="/refresh?to={{ '/results' if is_results else '/' }}" title="Fetch the latest data from ESPN now">
+        <span class="ico">↻</span> Refresh
+      </a>
+    </div>
+
+    {% if day_kind == "today" %}
+      <div class="banner">
+        <div class="day">Today · {{ day_label }}</div>
+        <div class="tag">Today's fixtures</div>
+      </div>
+    {% elif day_kind == "next" %}
+      <div class="banner">
+        <div class="day">{{ day_label }}</div>
+        <div class="tag next">{% if forced_next %}Next scheduled (admin){% else %}Next match day{% endif %}</div>
+      </div>
+    {% elif day_kind == "previous" %}
+      <div class="banner">
+        <div class="day">Results · {{ day_label }}</div>
+        <div class="tag">Final scores</div>
+      </div>
+    {% endif %}
+
+    {% if matches %}
+      <div class="matches">
+        {% for m in matches %}
+          <div class="match {% if m.is_live %}live{% endif %}">
+            <div class="team home">
+              <div class="logo {% if not m.home_logo %}placeholder{% endif %}">
+                {% if m.home_logo %}<img src="{{ m.home_logo }}" alt="" />{% else %}{{ m.home_short }}{% endif %}
+              </div>
+              <div class="name" title="{{ m.home_name }}">{{ m.home_name }}</div>
+            </div>
+
+            <div class="center">
+              {% if m.is_scheduled %}
+                <div class="kickoff">{{ m.kickoff_local }}</div>
+                <div class="status">{{ m.short_detail or m.status_label }}</div>
+              {% else %}
+                <div class="score">{{ m.home_score or "0" }}<span class="dash">–</span>{{ m.away_score or "0" }}</div>
+                <div class="status {% if m.is_live %}live{% elif m.is_final %}final{% endif %}">
+                  {% if m.is_live %}● {% endif %}{{ m.short_detail or m.status_label }}
+                </div>
+              {% endif %}
+              {% if m.venue %}<div class="venue">{{ m.venue }}{% if m.venue_location %} · {{ m.venue_location }}{% endif %}</div>{% endif %}
+            </div>
+
+            <div class="team away">
+              <div class="logo {% if not m.away_logo %}placeholder{% endif %}">
+                {% if m.away_logo %}<img src="{{ m.away_logo }}" alt="" />{% else %}{{ m.away_short }}{% endif %}
+              </div>
+              <div class="name" title="{{ m.away_name }}">{{ m.away_name }}</div>
+            </div>
+
+            {% if m.broadcasts %}
+              <div class="broadcasts">
+                <span class="label">US</span>
+                {% for b in m.broadcasts %}
+                  <span class="chan {% if b.kind == 'STREAMING' %}streaming{% endif %}">
+                    {{ b.name }}<span class="kind">{{ 'stream' if b.kind == 'STREAMING' else 'tv' }}</span>
+                  </span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">
+        {% if is_results %}
+          <p>No previous match results to show.</p>
+          <p class="small">Results appear here once a match day has finished.</p>
+        {% else %}
+          <p>No fixtures found in the next 14 days.</p>
+          <p class="small">If the tournament hasn't started yet, this updates automatically.</p>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <footer>
+      Data: ESPN unofficial · timezone: {{ tz_name }}{% if auto_refresh %} · auto-refresh {{ auto_refresh }}s{% endif %}
+    </footer>
+  </div>
+
+  {% if is_results %}
+    <a class="corner-btn" href="/"><span class="ico">←</span> Back to today</a>
+  {% else %}
+    <a class="corner-btn" href="/results">Previous results <span class="ico">→</span></a>
+  {% endif %}
+
+  <script>
+    // On the live/upcoming views, poll display mode; if admin flipped it, reload.
+    // Disabled on the static results view (location.reload would just re-fetch /results).
+    const POLL_STATE = {{ 'true' if poll_state else 'false' }};
+    const CURRENT_MODE = "{{ display_mode }}";
+    if (POLL_STATE) {
+      setInterval(async () => {
+        try {
+          const r = await fetch("/api/state", { cache: "no-store" });
+          const d = await r.json();
+          if (d.mode && d.mode !== CURRENT_MODE) location.reload();
+        } catch (_) {}
+      }, 2000);
+    }
+  </script>
+</body>
+</html>
