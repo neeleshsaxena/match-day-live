@@ -183,3 +183,10 @@ layer. Phase 2 adds:
 | 5 V 4 A PSU | Adafruit #1466 |
 
 The Pi 3B's built-in WiFi handles ESPN polling comfortably (~1 MB/h).
+
+## License
+
+[MIT](LICENSE) — do whatever you want, no warranty.
+
+ESPN data is fetched from a public, unofficial API. This project is not
+affiliated with or endorsed by ESPN or FIFA.
