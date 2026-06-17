@@ -106,6 +106,15 @@ def _fmt_match(m: Match) -> dict:
         "is_live": m.is_live,
         "is_final": m.is_final,
         "is_scheduled": not (m.is_live or m.is_final),
+        "home_goals": [
+            {"minute": g.minute, "player": g.player, "is_penalty": g.is_penalty, "is_own_goal": g.is_own_goal}
+            for g in m.home.goals
+        ],
+        "away_goals": [
+            {"minute": g.minute, "player": g.player, "is_penalty": g.is_penalty, "is_own_goal": g.is_own_goal}
+            for g in m.away.goals
+        ],
+        "has_goals": bool(m.home.goals or m.away.goals),
         "notes": m.notes,
         "broadcasts": [{"name": b.name, "kind": b.kind} for b in m.broadcasts],
     }

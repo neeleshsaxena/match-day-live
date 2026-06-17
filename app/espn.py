@@ -21,12 +21,40 @@ BROADCAST_LABELS = {
 
 
 @dataclass
+class Goal:
+    minute: str          # "23'", "45+2'", "90+5'" — ESPN's displayValue
+    player: str          # short name e.g. "K. Mbappé", fallback to displayName
+    is_penalty: bool = False
+    is_own_goal: bool = False
+    side: str = ""       # "home" or "away" — set at parse time
+
+    @property
+    def minute_sort_key(self) -> int:
+        """Return a sortable integer from the minute string for ordering."""
+        m = (self.minute or "").replace("'", "").strip()
+        if not m:
+            return 0
+        if "+" in m:
+            base, extra = m.split("+", 1)
+            try:
+                return int(base.strip()) * 100 + int(extra.strip())
+            except ValueError:
+                return 0
+        try:
+            return int(m) * 100
+        except ValueError:
+            return 0
+
+
+@dataclass
 class Team:
     name: str
     short: str
     logo: str | None
     score: str
     is_home: bool
+    team_id: str = ""
+    goals: list[Goal] = field(default_factory=list)
 
 
 @dataclass
@@ -62,6 +90,14 @@ class Match:
     @property
     def kickoff_date_utc(self) -> str:
         return self.kickoff_utc.strftime("%Y-%m-%d")
+
+    @property
+    def latest_goal(self):
+        """Most recent goal across both teams, by minute. None if scoreless."""
+        all_goals = list(self.home.goals) + list(self.away.goals)
+        if not all_goals:
+            return None
+        return max(all_goals, key=lambda g: g.minute_sort_key)
 
 
 @dataclass
@@ -99,6 +135,7 @@ def _parse_event(event: dict) -> Match | None:
                 logo=team.get("logo"),
                 score=str(raw.get("score", "") or ""),
                 is_home=is_home,
+                team_id=str(team.get("id", "")),
             )
 
         date_str = event.get("date") or comp.get("date")
@@ -107,6 +144,34 @@ def _parse_event(event: dict) -> Match | None:
         status = _safe(event, "status", "type", default={}) or {}
         notes_raw = _safe(comp, "notes", default=[]) or []
         notes = [n.get("headline") for n in notes_raw if n.get("headline")]
+
+        home = to_team(home_raw, True)
+        away = to_team(away_raw, False)
+
+        # Goal events live inside competitions[0].details. Each entry has
+        # type.text == "Goal" for scoring plays. Map by team.id back to home/away.
+        for d in _safe(comp, "details", default=[]) or []:
+            if (_safe(d, "type", "text") or "").lower() != "goal":
+                continue
+            minute = _safe(d, "clock", "displayValue") or ""
+            scorer_team_id = str(_safe(d, "team", "id") or "")
+            athletes = _safe(d, "athletesInvolved", default=[]) or []
+            player_name = ""
+            if athletes:
+                a0 = athletes[0]
+                player_name = a0.get("shortName") or a0.get("displayName") or ""
+            goal = Goal(
+                minute=minute,
+                player=player_name or "—",
+                is_penalty=bool(d.get("penaltyKick")),
+                is_own_goal=bool(d.get("ownGoal")),
+            )
+            if scorer_team_id == home.team_id:
+                goal.side = "home"
+                home.goals.append(goal)
+            elif scorer_team_id == away.team_id:
+                goal.side = "away"
+                away.goals.append(goal)
 
         broadcasts: list[Broadcast] = []
         seen: set[tuple[str, str]] = set()
@@ -128,8 +193,8 @@ def _parse_event(event: dict) -> Match | None:
             status_label=status.get("description", "Scheduled"),
             detail=status.get("detail", ""),
             short_detail=status.get("shortDetail", ""),
-            home=to_team(home_raw, True),
-            away=to_team(away_raw, False),
+            home=home,
+            away=away,
             venue=_safe(comp, "venue", "fullName"),
             venue_city=_safe(comp, "venue", "address", "city"),
             venue_country=_safe(comp, "venue", "address", "country"),

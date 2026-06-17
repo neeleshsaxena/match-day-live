@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import unicodedata
 from datetime import datetime
 
 from PIL import Image, ImageDraw
@@ -80,6 +81,26 @@ def _kickoff_countdown(match: Match, tz) -> tuple[str, tuple[int, int, int]]:
 
 _HALFTIME = "STATUS_HALFTIME"
 _GOAL_PULSE_COLOR = (255, 220, 80)  # warm gold
+_MAX_SCORER_LINE_CHARS = 10
+
+
+def _ascii_upper(s: str) -> str:
+    """Strip diacritics and uppercase. 'Mbappé' -> 'MBAPPE'."""
+    norm = unicodedata.normalize("NFKD", s)
+    stripped = "".join(c for c in norm if not unicodedata.combining(c))
+    return stripped.upper()
+
+
+def _format_scorer_line(goal) -> str:
+    """Compact 'MIN PLAYER' fit for a 60-px LED row at scale 1 of the 5x7 font."""
+    minute = (goal.minute or "").replace("'", "").strip()[:5]
+    raw = goal.player or ""
+    # "K. Mbappé" -> "Mbappé"; "Erling Haaland" -> "Haaland"
+    surname = raw.split(".")[-1].strip() if "." in raw else raw.split(" ")[-1].strip()
+    name = _ascii_upper(surname)
+    max_name = max(3, _MAX_SCORER_LINE_CHARS - len(minute) - 1)
+    name = name[:max_name]
+    return f"{minute} {name}".strip()
 
 
 def render(
@@ -149,6 +170,19 @@ def render(
 
     # Row 36: subtle dim divider before status row (inset)
     draw_hline(draw, 36, fill=DIM, x0=content_left + 2, x1=content_right - 1)
+
+    # Rows 38–44: latest goal scorer (if any). Left-aligned for home goals,
+    # right-aligned for away goals — mirrors team label placement at top.
+    last_goal = match.latest_goal if not is_scheduled else None
+    if last_goal:
+        line = _format_scorer_line(last_goal)
+        line_y = 38
+        text_w = big_text_width(line, scale=1)
+        if last_goal.side == "home":
+            line_x = content_left
+        else:
+            line_x = content_right - text_w + 1
+        draw_big(draw, (line_x, line_y), line, fill=WHITE, scale=1)
 
     # Rows 44–55: status zone (constrained to content area)
     status_x = content_left

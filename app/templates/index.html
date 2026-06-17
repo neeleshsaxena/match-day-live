@@ -196,6 +196,90 @@
     .status.live { color: var(--live); font-weight: 600; }
     .status.final { color: var(--final); }
     .venue { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+    /* Expandable goal scorers */
+    .match.expandable { cursor: pointer; transition: border-color 0.15s, transform 0.12s; }
+    .match.expandable:hover { border-color: rgba(255,179,71,0.35); }
+    .match.expandable:active { transform: scale(0.998); }
+    .match-goals {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 14px;
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+      border-top: 0 solid var(--border);
+      margin-top: 0;
+      padding-top: 0;
+      transition: max-height 0.32s ease, opacity 0.2s ease 0.05s, padding-top 0.32s ease, margin-top 0.32s ease;
+    }
+    .match.expanded .match-goals {
+      max-height: 480px;
+      opacity: 1;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top-width: 1px;
+    }
+    .goal-col h6 {
+      font-size: 10px;
+      color: var(--muted);
+      margin: 0 0 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      font-weight: 600;
+    }
+    .goal-col.away { text-align: right; }
+    .goal-col.divider {
+      width: 1px;
+      background: linear-gradient(to bottom, transparent, var(--border), transparent);
+      align-self: stretch;
+    }
+    .goal-row {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: var(--text);
+    }
+    .goal-col.away .goal-row { justify-content: flex-end; }
+    .goal-row .min {
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      min-width: 32px;
+    }
+    .goal-col.away .goal-row .min { order: 2; min-width: 0; }
+    .goal-col.away .goal-row .pl { order: 1; }
+    .goal-col.away .goal-row .tag { order: 0; }
+    .goal-row .pl { color: var(--text); }
+    .goal-row .tag {
+      font-size: 9px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: var(--panel-2);
+    }
+    .goal-row .tag.pen { color: var(--accent); border-color: rgba(255,179,71,0.4); }
+    .goal-row .tag.og { color: #ff7676; border-color: rgba(255,118,118,0.4); }
+    .expand-hint {
+      grid-column: 1 / -1;
+      text-align: center;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      margin-top: 8px;
+      opacity: 0.6;
+      transition: opacity 0.15s;
+    }
+    .match.expanded .expand-hint { opacity: 0; pointer-events: none; }
+    .expand-hint .chev { display: inline-block; transition: transform 0.2s; margin-left: 4px; }
+    .match.expanded .expand-hint .chev { transform: rotate(180deg); }
     .empty {
       background: var(--panel);
       border: 1px dashed var(--border);
@@ -262,7 +346,7 @@
     {% if matches %}
       <div class="matches">
         {% for m in matches %}
-          <div class="match {% if m.is_live %}live{% endif %}">
+          <div class="match {% if m.is_live %}live{% endif %} {% if m.has_goals %}expandable{% endif %}">
             <div class="team home">
               <div class="logo {% if not m.home_logo %}placeholder{% endif %}">
                 {% if m.home_logo %}<img src="{{ m.home_logo }}" alt="" />{% else %}{{ m.home_short }}{% endif %}
@@ -299,6 +383,39 @@
                   </span>
                 {% endfor %}
               </div>
+            {% endif %}
+
+            {% if m.has_goals %}
+              <div class="match-goals">
+                <div class="goal-col home">
+                  {% if m.home_goals %}
+                    <h6>Scorers — {{ m.home_short }}</h6>
+                    {% for g in m.home_goals %}
+                      <div class="goal-row">
+                        <span class="min">{{ g.minute }}</span>
+                        <span class="pl">{{ g.player }}</span>
+                        {% if g.is_penalty %}<span class="tag pen">pen</span>{% endif %}
+                        {% if g.is_own_goal %}<span class="tag og">og</span>{% endif %}
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+                </div>
+                <div class="goal-col divider"></div>
+                <div class="goal-col away">
+                  {% if m.away_goals %}
+                    <h6>Scorers — {{ m.away_short }}</h6>
+                    {% for g in m.away_goals %}
+                      <div class="goal-row">
+                        {% if g.is_own_goal %}<span class="tag og">og</span>{% endif %}
+                        {% if g.is_penalty %}<span class="tag pen">pen</span>{% endif %}
+                        <span class="pl">{{ g.player }}</span>
+                        <span class="min">{{ g.minute }}</span>
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+                </div>
+              </div>
+              <div class="expand-hint">tap for scorers <span class="chev">▾</span></div>
             {% endif %}
           </div>
         {% endfor %}
@@ -340,6 +457,15 @@
         } catch (_) {}
       }, 2000);
     }
+
+    // Tap any tile with scorers to reveal goal details.
+    document.querySelectorAll('.match.expandable').forEach(el => {
+      el.addEventListener('click', (e) => {
+        // Don't toggle if user clicked a broadcast chip or any link.
+        if (e.target.closest('a, .chan')) return;
+        el.classList.toggle('expanded');
+      });
+    });
   </script>
 </body>
 </html>
