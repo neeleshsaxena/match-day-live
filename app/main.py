@@ -318,6 +318,7 @@ async def led_preview_page():
     """LED panel preview — auto-refreshing image with a glowing bezel."""
     return """<!doctype html>
 <html><head><meta charset="utf-8"><title>LED preview · match-day-live</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E" />
 <style>
 :root {
   --bg: #07090d;
