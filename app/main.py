@@ -318,7 +318,7 @@ async def led_preview_page():
     """LED panel preview — auto-refreshing image with a glowing bezel."""
     return """<!doctype html>
 <html><head><meta charset="utf-8"><title>LED preview · match-day-live</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http%3A//www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Ccircle%20cx='32'%20cy='32'%20r='28'%20fill='%23fafafa'%20stroke='%230e0e0e'%20stroke-width='3'/%3E%3Cpath%20d='M32%2016%20L46%2027%20L41%2044%20L23%2044%20L18%2027%20Z'%20fill='%230e0e0e'/%3E%3Cline%20x1='32'%20y1='16'%20x2='32'%20y2='4'%20stroke='%230e0e0e'%20stroke-width='3'/%3E%3Cline%20x1='46'%20y1='27'%20x2='58'%20y2='20'%20stroke='%230e0e0e'%20stroke-width='3'/%3E%3Cline%20x1='41'%20y1='44'%20x2='52'%20y2='55'%20stroke='%230e0e0e'%20stroke-width='3'/%3E%3Cline%20x1='23'%20y1='44'%20x2='12'%20y2='55'%20stroke='%230e0e0e'%20stroke-width='3'/%3E%3Cline%20x1='18'%20y1='27'%20x2='6'%20y2='20'%20stroke='%230e0e0e'%20stroke-width='3'/%3E%3C/svg%3E" />
 <style>
 :root {
   --bg: #07090d;
