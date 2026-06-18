@@ -37,6 +37,13 @@ app = FastAPI(title="match-day-live", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 
+# Safari (and some other browsers) hit /favicon.ico unconditionally,
+# regardless of the <link rel="icon"> in the HTML.
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon_ico():
+    return FileResponse(BASE_DIR / "static" / "favicon.ico", media_type="image/x-icon")
+
+
 # ─── matches ──────────────────────────────────────────────────────────────────
 
 
@@ -320,7 +327,7 @@ async def led_preview_page():
     """LED panel preview — auto-refreshing image with a glowing bezel."""
     return """<!doctype html>
 <html><head><meta charset="utf-8"><title>LED preview · match-day-live</title>
-<link rel="icon" type="image/png" sizes="64x64" href="/static/favicon.png" /><link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico" /><link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png" /><link rel="icon" type="image/png" sizes="64x64" href="/static/favicon.png" /><link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
 <style>
 :root {
   --bg: #07090d;
