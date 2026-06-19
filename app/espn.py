@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 
 ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
+ESPN_SUMMARY = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary"
 
 LIVE_STATUSES = {"STATUS_IN_PROGRESS", "STATUS_HALFTIME", "STATUS_FIRST_HALF", "STATUS_SECOND_HALF"}
 FINAL_STATUSES = {"STATUS_FULL_TIME", "STATUS_FINAL"}
@@ -210,10 +211,81 @@ class ESPNClient:
         self._timeout = timeout
         self._cache: Snapshot | None = None
         self._cache_ts: float = 0.0
+        # Per-match scorer cache keyed by event_id.
+        # Value: (fetched_monotonic, is_final_at_fetch, home_goals, away_goals)
+        self._scorers_cache: dict[str, tuple[float, bool, list[Goal], list[Goal]]] = {}
         self._client = httpx.AsyncClient(timeout=timeout, headers={"User-Agent": "match-day-live/0.1"})
 
     async def close(self) -> None:
         await self._client.aclose()
+
+    async def fetch_event_scorers(
+        self,
+        event_id: str,
+        home_team_id: str,
+        away_team_id: str,
+        is_final: bool = False,
+        force: bool = False,
+    ) -> tuple[list[Goal], list[Goal]]:
+        """Fetch ESPN summary for one event and parse keyEvents into goals.
+
+        keyEvents is more complete than scoreboard.details (it includes goal
+        sub-types like "Goal - Volley", "Goal - Header", "Own Goal", etc.).
+        Cached per event id with a short TTL while live (60 s) and a long TTL
+        once final (10 min, since the data won't change)."""
+        cached = self._scorers_cache.get(event_id)
+        if cached and not force:
+            ts, was_final, hg, ag = cached
+            ttl = 600.0 if was_final else 60.0
+            if time.monotonic() - ts < ttl:
+                return hg, ag
+
+        url = f"{ESPN_SUMMARY}?event={event_id}"
+        try:
+            r = await self._client.get(url)
+            r.raise_for_status()
+            data = r.json()
+        except Exception:
+            if cached:
+                return cached[2], cached[3]
+            raise
+
+        home_goals: list[Goal] = []
+        away_goals: list[Goal] = []
+        for ev in data.get("keyEvents") or []:
+            if not ev.get("scoringPlay"):
+                continue
+            type_text = (_safe(ev, "type", "text") or "").strip()
+            type_text_low = type_text.lower()
+            # Filter out non-goal scoring plays just in case (e.g. soccer summary keyEvents
+            # only marks goals as scoringPlay, but stay defensive).
+            if "goal" not in type_text_low and "penalty" not in type_text_low:
+                continue
+            minute = _safe(ev, "clock", "displayValue") or ""
+            scorer_team_id = str(_safe(ev, "team", "id") or "")
+            participants = _safe(ev, "participants", default=[]) or []
+            player = ""
+            if participants:
+                a = participants[0].get("athlete") or {}
+                player = a.get("shortName") or a.get("displayName") or ""
+            short_text = (ev.get("shortText") or "").lower()
+            is_penalty = "penalty" in type_text_low or "(penalty)" in short_text
+            is_own_goal = "own goal" in type_text_low or "own goal" in short_text
+            g = Goal(
+                minute=minute,
+                player=player or "—",
+                is_penalty=is_penalty,
+                is_own_goal=is_own_goal,
+            )
+            if scorer_team_id == home_team_id:
+                g.side = "home"
+                home_goals.append(g)
+            elif scorer_team_id == away_team_id:
+                g.side = "away"
+                away_goals.append(g)
+
+        self._scorers_cache[event_id] = (time.monotonic(), is_final, home_goals, away_goals)
+        return home_goals, away_goals
 
     def _ttl_for(self, snapshot: Snapshot | None) -> float:
         if not snapshot:

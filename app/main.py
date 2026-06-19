@@ -90,6 +90,13 @@ def _pick_previous(snapshot: Snapshot) -> tuple[str | None, list[Match], str]:
     return None, [], "none"
 
 
+def _to_int(s: str | None) -> int:
+    try:
+        return int(s or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _fmt_match(m: Match) -> dict:
     kickoff_local = m.kickoff_utc.astimezone(LOCAL_TZ)
     return {
@@ -124,6 +131,7 @@ def _fmt_match(m: Match) -> dict:
             for g in m.away.goals
         ],
         "has_goals": bool(m.home.goals or m.away.goals),
+        "has_score": bool(_to_int(m.home.score) or _to_int(m.away.score)),
         "notes": m.notes,
         "broadcasts": [{"name": b.name, "kind": b.kind} for b in m.broadcasts],
     }
@@ -309,6 +317,40 @@ async def api_raw(request: Request):
 @app.get("/healthz")
 async def healthz():
     return {"status": "ok"}
+
+
+@app.get("/api/match/{event_id}/scorers")
+async def api_match_scorers(request: Request, event_id: str):
+    """Lazy-fetch the complete scorer list from ESPN's per-match summary.
+
+    Scoreboard.details is unreliable — sometimes empty, sometimes partial.
+    The summary endpoint's keyEvents has every scoring play. Called by the
+    web tile when a user first expands it."""
+    snapshot = await request.app.state.espn.get()
+    match = next((m for m in snapshot.matches if m.id == event_id), None)
+    if not match:
+        raise HTTPException(status_code=404, detail="unknown event_id")
+    try:
+        home_goals, away_goals = await request.app.state.espn.fetch_event_scorers(
+            event_id, match.home.team_id, match.away.team_id, is_final=match.is_final
+        )
+    except Exception as e:
+        return JSONResponse(
+            {"error": f"upstream fetch failed: {type(e).__name__}"}, status_code=502
+        )
+    def _ser(gs):
+        return [
+            {"minute": g.minute, "player": g.player,
+             "is_penalty": g.is_penalty, "is_own_goal": g.is_own_goal}
+            for g in gs
+        ]
+    return {
+        "event_id": event_id,
+        "home_short": match.home.short,
+        "away_short": match.away.short,
+        "home_goals": _ser(home_goals),
+        "away_goals": _ser(away_goals),
+    }
 
 
 # ─── LED dev preview ──────────────────────────────────────────────────────────

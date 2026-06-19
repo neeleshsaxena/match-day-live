@@ -270,6 +270,21 @@
     }
     .goal-row .tag.pen { color: var(--accent); border-color: rgba(255,179,71,0.4); }
     .goal-row .tag.og { color: #ff7676; border-color: rgba(255,118,118,0.4); }
+    .goals-loading {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 6px 0;
+      font-style: italic;
+    }
+    .goals-error {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: #ff8a8a;
+      font-size: 12px;
+      padding: 6px 0;
+    }
     .expand-hint {
       grid-column: 1 / -1;
       text-align: center;
@@ -350,7 +365,11 @@
     {% if matches %}
       <div class="matches">
         {% for m in matches %}
-          <div class="match {% if m.is_live %}live{% endif %} {% if m.has_goals %}expandable{% endif %}">
+          <div class="match {% if m.is_live %}live{% endif %} {% if m.has_score %}expandable{% endif %}"
+               data-event-id="{{ m.id }}"
+               data-home-short="{{ m.home_short }}"
+               data-away-short="{{ m.away_short }}"
+               data-loaded="{{ 'false' }}">
             <div class="team home">
               <div class="logo {% if not m.home_logo %}placeholder{% endif %}">
                 {% if m.home_logo %}<img src="{{ m.home_logo }}" alt="" />{% else %}{{ m.home_short }}{% endif %}
@@ -389,9 +408,12 @@
               </div>
             {% endif %}
 
-            {% if m.has_goals %}
+            {% if m.has_score %}
               <div class="match-goals">
                 <div class="goal-col home">
+                  {# Inline goals from scoreboard.details — may be partial.
+                     JS replaces this with fresh data from /api/match/{id}/scorers
+                     on first expand. #}
                   {% if m.home_goals %}
                     <h6>Scorers — {{ m.home_short }}</h6>
                     {% for g in m.home_goals %}
@@ -462,12 +484,71 @@
       }, 2000);
     }
 
-    // Tap any tile with scorers to reveal goal details.
+    // Tap any tile with a score to reveal goal details. Lazy-fetch the full
+    // scorer list from /api/match/{id}/scorers on first expand (scoreboard
+    // data is unreliable; the summary endpoint is the source of truth).
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+    function renderGoals(col, goals, teamShort, isAway) {
+      if (!goals || !goals.length) { col.innerHTML = ''; return; }
+      const head = `<h6>Scorers — ${esc(teamShort)}</h6>`;
+      const rows = goals.map(g => {
+        const tags =
+          (g.is_penalty ? '<span class="tag pen">pen</span>' : '') +
+          (g.is_own_goal ? '<span class="tag og">og</span>' : '');
+        return isAway
+          ? `<div class="goal-row">${tags}<span class="pl">${esc(g.player)}</span><span class="min">${esc(g.minute)}</span></div>`
+          : `<div class="goal-row"><span class="min">${esc(g.minute)}</span><span class="pl">${esc(g.player)}</span>${tags}</div>`;
+      }).join('');
+      col.innerHTML = head + rows;
+    }
+    async function loadScorers(tile) {
+      const id = tile.dataset.eventId;
+      if (!id) return;
+      const goalsPanel = tile.querySelector('.match-goals');
+      if (!goalsPanel) return;
+      const homeCol = goalsPanel.querySelector('.goal-col.home');
+      const awayCol = goalsPanel.querySelector('.goal-col.away');
+      tile.dataset.loaded = 'loading';
+      // Stash existing inline content so we can fall back on fetch error.
+      const fallbackHome = homeCol.innerHTML;
+      const fallbackAway = awayCol.innerHTML;
+      const loader = document.createElement('div');
+      loader.className = 'goals-loading';
+      loader.textContent = 'loading scorers…';
+      goalsPanel.appendChild(loader);
+      try {
+        const r = await fetch(`/api/match/${id}/scorers`, { cache: 'no-store' });
+        if (!r.ok) throw new Error('http ' + r.status);
+        const d = await r.json();
+        loader.remove();
+        renderGoals(homeCol, d.home_goals, tile.dataset.homeShort, false);
+        renderGoals(awayCol, d.away_goals, tile.dataset.awayShort, true);
+        tile.dataset.loaded = 'true';
+      } catch (e) {
+        loader.remove();
+        // Restore the inline content (might be empty, but that's fine).
+        homeCol.innerHTML = fallbackHome;
+        awayCol.innerHTML = fallbackAway;
+        if (!fallbackHome && !fallbackAway) {
+          const err = document.createElement('div');
+          err.className = 'goals-error';
+          err.textContent = 'scorer info unavailable';
+          goalsPanel.appendChild(err);
+        }
+        tile.dataset.loaded = 'error';
+      }
+    }
     document.querySelectorAll('.match.expandable').forEach(el => {
       el.addEventListener('click', (e) => {
-        // Don't toggle if user clicked a broadcast chip or any link.
         if (e.target.closest('a, .chan')) return;
-        el.classList.toggle('expanded');
+        const expanded = el.classList.toggle('expanded');
+        if (expanded && el.dataset.loaded !== 'true' && el.dataset.loaded !== 'loading') {
+          loadScorers(el);
+        }
       });
     });
   </script>
